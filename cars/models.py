@@ -19,7 +19,7 @@ class Car(models.Model):
     price_in_uah = models.CharField(max_length=255, verbose_name='Price in UAH')
     location = models.CharField(max_length=255, verbose_name='Location of car')
     range = models.CharField(max_length=255, verbose_name='Car range')
-    link = models.URLField(verbose_name="Link for Car")
+    link = models.URLField(verbose_name="Link for Car", unique=True)
     brand = models.ForeignKey(Brand, default='Other', on_delete=models.CASCADE)
 
     class Meta:

@@ -1,4 +1,5 @@
 import csv
+from sqlite3 import IntegrityError
 
 from django.core.management.base import BaseCommand
 from Parser_dj.base_parser import BaseParser
@@ -9,14 +10,11 @@ from cars.models import Car, Brand
 class Command(BaseCommand):
     help = 'Autoria parsing'
 
-
-
     @staticmethod
     def add_arguments(parser):
         """ arguments config """
         parser.add_argument('--brand', type=str, required=True)
         parser.add_argument('--base_url', type=str, required=True)
-
 
     @staticmethod
     def get_content(html):
@@ -60,17 +58,23 @@ class Command(BaseCommand):
         page = pars.get_html_by_selenium(options['base_url'])
         count = self.get_page_count(page)
         cars = []
-        Brand(
+        brand, created = Brand.objects.get_or_create(
             name=options['brand'],
             base_url=options['base_url']
-        ).save()
-        print(f'{options["brand"]} was added to brands')
+        )
+        if created:
+            brand.save()
+            print(f"Brand {options['brand']} was created")
+        else:
+            print(f"{options['brand']} already exists")
+
         for page in range(1, count + 1):
             print(f'Get all cars on page {page} from {count}')
             pars.get(options['base_url'] + f'/?page={page}')
             cars.extend(self.get_content(pars.get_html_by_selenium(options['base_url'] + f'/?page={page}')))
+        # save cars to db
         for car in cars:
-            Car(
+            auto, created = Car.objects.get_or_create(
                 brand=Brand.objects.get(name=options['brand']),
                 title=car['title'],
                 price_in_usd=car['price in $'],
@@ -78,5 +82,9 @@ class Command(BaseCommand):
                 location=car['location'],
                 range=car['range'],
                 link=car['link for car'],
-            ).save()
+            )
+            if created:
+                auto.save()
+            else:
+                print(f'This car {car["title"]} : {car["link for car"]} already exists')
         print(f'There was parsed {len(cars)} cars for {options["brand"]} brand')
