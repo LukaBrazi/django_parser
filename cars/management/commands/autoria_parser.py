@@ -53,6 +53,14 @@ class Command(BaseCommand):
         else:
             return 1
 
+    @staticmethod
+    def remove_old_cars(cars):
+        web_links = ['link for car']
+        for link in cars:
+            web_links.append(link['link for car'])
+        Car.objects.exclude(link__in=web_links).delete()
+        print(f'There is a number of cars what will be delete {len(Car.objects.exclude(link__in=web_links))}')
+
     def handle(self, *args, **options):
         pars = BaseParser()
         page = pars.get_html_by_selenium(options['base_url'])
@@ -72,6 +80,8 @@ class Command(BaseCommand):
             print(f'Get all cars on page {page} from {count}')
             pars.get(options['base_url'] + f'/?page={page}')
             cars.extend(self.get_content(pars.get_html_by_selenium(options['base_url'] + f'/?page={page}')))
+
+        self.remove_old_cars(cars, options['brand'])
         # save cars to db
         for car in cars:
             auto, created = Car.objects.get_or_create(
