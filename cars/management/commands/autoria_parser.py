@@ -1,6 +1,4 @@
 import csv
-from sqlite3 import IntegrityError
-
 from django.core.management.base import BaseCommand
 from Parser_dj.base_parser import BaseParser
 from bs4 import BeautifulSoup
@@ -15,7 +13,7 @@ class Command(BaseCommand):
         """ arguments config """
         parser.add_argument('--brand', type=str, required=True)
         parser.add_argument('--base_url', type=str, required=True)
-
+        parser.add_argument('--debug', type=bool, default=False)
     @staticmethod
     def get_content(html):
         soup = BeautifulSoup(str(html), 'html.parser')
@@ -30,7 +28,6 @@ class Command(BaseCommand):
                 'range': item.find('li', class_='item-char').get_text(strip=True),
                 'link for car': item.find('a', class_='m-link-ticket', href=True).get('href')
             })
-        print(len(cars))
         return cars
 
     @staticmethod
@@ -48,18 +45,19 @@ class Command(BaseCommand):
         soup = BeautifulSoup(html, 'html.parser')
         pagination = soup.find_all('span', class_='page-item mhide')
         if pagination:
-            print(int(pagination[-1].get_text(strip=True)))
+            print(f'Found number of pages {int(pagination[-1].get_text(strip=True))}')
             return int(pagination[-1].get_text(strip=True))
         else:
             return 1
 
     @staticmethod
-    def remove_old_cars(cars):
+    def remove_old_cars(cars, brand):
         web_links = ['link for car']
         for link in cars:
             web_links.append(link['link for car'])
-        Car.objects.exclude(link__in=web_links).delete()
-        print(f'There is a number of cars what will be delete {len(Car.objects.exclude(link__in=web_links))}')
+        old_car = Car.objects.filter(brand=brand).exclude(link__in=web_links)
+        print(f'There is a number of cars what was delete {old_car.count()}')
+        old_car.delete()
 
     def handle(self, *args, **options):
         pars = BaseParser()
@@ -80,21 +78,24 @@ class Command(BaseCommand):
             print(f'Get all cars on page {page} from {count}')
             pars.get(options['base_url'] + f'/?page={page}')
             cars.extend(self.get_content(pars.get_html_by_selenium(options['base_url'] + f'/?page={page}')))
-
         self.remove_old_cars(cars, options['brand'])
+
         # save cars to db
-        for car in cars:
-            auto, created = Car.objects.get_or_create(
-                brand=Brand.objects.get(name=options['brand']),
-                title=car['title'],
-                price_in_usd=car['price in $'],
-                price_in_uah=car['price in UAH'],
-                location=car['location'],
-                range=car['range'],
-                link=car['link for car'],
-            )
-            if created:
-                auto.save()
-            else:
-                print(f'This car {car["title"]} : {car["link for car"]} already exists')
-        print(f'There was parsed {len(cars)} cars for {options["brand"]} brand')
+        if options['debug']:
+            print(f'Parsing is complete total number of cars is {len(cars)} there is a list of parsed cars : \n {cars}')
+        else:
+            for car in cars:
+                auto, created = Car.objects.get_or_create(
+                    brand=Brand.objects.get(name=options['brand']),
+                    title=car['title'],
+                    price_in_usd=car['price in $'],
+                    price_in_uah=car['price in UAH'],
+                    location=car['location'],
+                    range=car['range'],
+                    link=car['link for car'],
+                )
+                if created:
+                    auto.save()
+                else:
+                    print(f'This car {car["title"]} : {car["link for car"]} already exists')
+                print(f'There was parsed {len(cars)} cars for {options["brand"]} brand')
