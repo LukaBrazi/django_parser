@@ -5,7 +5,6 @@ from .models import Brand as BrandModel
 from django.core import management
 
 
-
 @admin.register(Car)
 class Car(admin.ModelAdmin):
     list_display = (f'brand', 'title', 'price_in_usd', 'link')
@@ -19,9 +18,10 @@ class Brand(admin.ModelAdmin):
     list_display = ('name', 'base_url')
 
     def run_parser(self, request, queryset):
-        brand = BrandModel.objects.get(name=queryset.first().name)
-        management.call_command('autoria_parser', brand=brand.name, base_url=brand.base_url)
-        #autoria_parser.Command.handle(brand=brand.name, base_url=brand.base_url)
+        for brand in queryset:
+            brand = BrandModel.objects.get(name=brand)
+            management.call_command('autoria_parser', brand=brand.name, base_url=brand.base_url)
+            self.message_user(request, f"Parsing for {brand} complete")
 
     run_parser.short_description = "Run parser for selected brand"
     actions = [run_parser]
