@@ -98,4 +98,4 @@ class Command(BaseCommand):
                     auto.save()
                 else:
                     print(f'This car {car["title"]} : {car["link for car"]} already exists')
-                print(f'There was parsed {len(cars)} cars for {options["brand"]} brand')
+            print(f'There was parsed {len(cars)} cars for {options["brand"]} brand')
